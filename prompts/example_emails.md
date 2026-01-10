@@ -4,6 +4,14 @@ These are actual emails Peter has written. Use them as reference for voice, tone
 
 ---
 
+## Aliveness
+
+It seems that one of the prompts for disembodiment or neurotic states is the robust habit of becoming absorbed in interpretations prompted by an avoidance of sensation-level experience. Practices like Dzogchen and Tummo can provide an interesting framework for directly appreciating and experiencing the full spectrum of aliveness at any given moment. 
+
+Tummo supports the effort to attune to the winds' energetic movement and become more familiar with any refusal to go into experiential intensity. As soon as we avoid something, then it gives it the appearance of being an obstacle or ‘bigger’ than us. We’ll be doing some work with nervous system regulation to complement the Tsa Lung methods.
+
+The Dzogchen sections of the course will address our fascination with distractions and our understanding that those distractions keep us from our panic or, let's say, openness/freedom.
+
 ## Responding to Dissociation Concerns
 
 I think the habit of dissociation is relevant for even seasoned practitioners, so I understand your concerns. You will find that this method promotes an ability to engage fully with existential intensity. The practice requires consistent engagement with the method, but over time can yield great benefit.

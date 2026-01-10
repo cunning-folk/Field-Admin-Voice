@@ -78,28 +78,43 @@ def perform_web_search(query):
     except Exception as e:
         return f"Search error: {str(e)}"
 
-# Prompts directory
+# Prompts directories
 PROMPTS_DIR = Path(__file__).parent / "prompts"
+INSTRUCTIONS_DIR = PROMPTS_DIR / "instructions"
 
-def get_all_prompt_files():
-    """Get all .md files from the prompts directory."""
+def get_instructions():
+    """Get all .md files from the instructions directory (behavior rules)."""
+    if not INSTRUCTIONS_DIR.exists():
+        INSTRUCTIONS_DIR.mkdir(parents=True)
+    return sorted(INSTRUCTIONS_DIR.glob("*.md"))
+
+def get_resource_files():
+    """Get all .md files from the prompts directory (not in subdirectories)."""
     if not PROMPTS_DIR.exists():
         PROMPTS_DIR.mkdir(parents=True)
-    return sorted(PROMPTS_DIR.glob("*.md"))
+    return sorted([f for f in PROMPTS_DIR.glob("*.md") if f.is_file()])
 
 def build_system_prompt():
-    """Construct the full system prompt from all .md files in prompts/."""
-    prompt_files = get_all_prompt_files()
+    """Construct the full system prompt from instructions and resource files."""
+    # Load instructions (behavior rules) first
+    instructions = []
+    for file_path in get_instructions():
+        content = file_path.read_text()
+        instructions.append(content)
 
+    instructions_text = "\n\n".join(instructions) if instructions else ""
+
+    # Load resource files
     resources = []
-    for file_path in prompt_files:
+    for file_path in get_resource_files():
         name = file_path.stem.replace("_", " ").title()
         content = file_path.read_text()
         resources.append(f"## {name}\n\n{content}")
 
     resources_text = "\n\n".join(resources) if resources else "(No resource files loaded)"
 
-    return f"""You are an AI assistant for Peter McEwen, founder of The Field.
+    # Build the system prompt with instructions at the top
+    base_prompt = """You are an AI assistant for Peter McEwen, founder of The Field.
 
 You help Peter with various tasks including drafting emails, answering questions, research, and providing advice—all in Peter's voice and style.
 
@@ -109,7 +124,15 @@ You have access to web search. Use it when:
 - Asked about current events, news, or recent information
 - Looking up facts about people, companies, or organizations
 - Researching topics you're unsure about
-- The user explicitly asks you to search or look something up
+- The user explicitly asks you to search or look something up"""
+
+    # Add instructions if they exist
+    if instructions_text:
+        base_prompt = f"{base_prompt}\n\n# Instructions\n\n{instructions_text}"
+
+    return f"""{base_prompt}
+
+# Resources
 
 {resources_text}
 
@@ -122,13 +145,14 @@ def home():
 
 @app.route("/files", methods=["GET"])
 def list_files():
-    """List all .md files in the prompts directory."""
-    files = [f.name for f in get_all_prompt_files()]
-    return jsonify({"files": files})
+    """List all .md files in prompts and instructions directories."""
+    resources = [f.name for f in get_resource_files()]
+    instructions = [f.name for f in get_instructions()]
+    return jsonify({"resources": resources, "instructions": instructions})
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
-    """Upload a .md file to the prompts directory."""
+    """Upload a .md file to prompts or instructions directory."""
     if "file" not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
@@ -139,17 +163,22 @@ def upload_file():
     if not file.filename.endswith(".md"):
         return jsonify({"error": "Only .md files are allowed"}), 400
 
+    # Check if uploading to instructions folder
+    folder = request.form.get("folder", "resources")
+    target_dir = INSTRUCTIONS_DIR if folder == "instructions" else PROMPTS_DIR
+
     filename = secure_filename(file.filename)
-    file_path = PROMPTS_DIR / filename
+    file_path = target_dir / filename
     file.save(file_path)
 
-    return jsonify({"success": True, "filename": filename})
+    return jsonify({"success": True, "filename": filename, "folder": folder})
 
-@app.route("/delete/<filename>", methods=["DELETE"])
-def delete_file(filename):
-    """Delete a .md file from the prompts directory."""
+@app.route("/delete/<folder>/<filename>", methods=["DELETE"])
+def delete_file(folder, filename):
+    """Delete a .md file from prompts or instructions directory."""
     filename = secure_filename(filename)
-    file_path = PROMPTS_DIR / filename
+    target_dir = INSTRUCTIONS_DIR if folder == "instructions" else PROMPTS_DIR
+    file_path = target_dir / filename
 
     if not file_path.exists():
         return jsonify({"error": "File not found"}), 404

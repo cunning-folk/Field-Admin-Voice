@@ -291,6 +291,11 @@
         .upload-status.success { color: #080; }
         .upload-status.error { color: #c00; }
 
+        .file-list-section {
+            margin-top: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
         .hint {
             font-size: 0.8rem;
             color: #888;
@@ -343,15 +348,24 @@
     <div class="modal-overlay" id="files-modal">
         <div class="modal">
             <button class="modal-close" onclick="closeFilesModal()">&times;</button>
-            <h2>Resource Files</h2>
-            <p class="hint" style="margin-bottom: 1rem;">Upload .md files to customize the AI's knowledge.</p>
 
-            <div class="drop-zone" id="drop-zone">
-                <p>Drag & drop .md files here</p>
-                <input type="file" id="file-input" accept=".md" multiple>
+            <h2>Instructions</h2>
+            <p class="hint" style="margin-bottom: 0.5rem;">Behavior rules for the AI assistant.</p>
+            <div class="drop-zone" id="drop-zone-instructions" data-folder="instructions">
+                <p>Drop .md files here for instructions</p>
+                <input type="file" class="file-input" accept=".md" multiple>
             </div>
+            <div id="instructions-list" class="file-list-section"></div>
+
+            <h2 style="margin-top: 1.5rem;">Resources</h2>
+            <p class="hint" style="margin-bottom: 0.5rem;">Reference material (voice guide, examples, context).</p>
+            <div class="drop-zone" id="drop-zone-resources" data-folder="resources">
+                <p>Drop .md files here for resources</p>
+                <input type="file" class="file-input" accept=".md" multiple>
+            </div>
+            <div id="resources-list" class="file-list-section"></div>
+
             <div id="upload-status" class="upload-status"></div>
-            <div id="file-list"></div>
         </div>
     </div>
 
@@ -495,31 +509,35 @@
             if (e.target.id === 'files-modal') closeFilesModal();
         });
 
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
+        // Set up both drop zones
+        document.querySelectorAll('.drop-zone').forEach(dropZone => {
+            const fileInput = dropZone.querySelector('.file-input');
+            const folder = dropZone.dataset.folder;
 
-        dropZone.addEventListener('click', () => fileInput.click());
+            dropZone.addEventListener('click', () => fileInput.click());
 
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('drag-over');
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('drag-over');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                handleFiles(e.dataTransfer.files, folder);
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                handleFiles(e.target.files, folder);
+                fileInput.value = '';
+            });
         });
 
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('drag-over');
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-            handleFiles(e.dataTransfer.files);
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            handleFiles(e.target.files);
-        });
-
-        async function handleFiles(files) {
+        async function handleFiles(files, folder) {
             for (const file of files) {
                 if (!file.name.endsWith('.md')) {
                     showStatus(`${file.name}: Only .md files allowed`, 'error');
@@ -528,6 +546,7 @@
 
                 const formData = new FormData();
                 formData.append('file', file);
+                formData.append('folder', folder);
 
                 try {
                     const response = await fetch('/upload', {
@@ -539,43 +558,55 @@
                     if (data.error) {
                         showStatus(`${file.name}: ${data.error}`, 'error');
                     } else {
-                        showStatus(`${file.name} uploaded`, 'success');
+                        showStatus(`${file.name} uploaded to ${folder}`, 'success');
                         loadFiles();
                     }
                 } catch (err) {
                     showStatus(`${file.name}: Upload failed`, 'error');
                 }
             }
-            fileInput.value = '';
         }
 
         async function loadFiles() {
             try {
                 const response = await fetch('/files');
                 const data = await response.json();
-                const fileList = document.getElementById('file-list');
 
-                if (data.files.length === 0) {
-                    fileList.innerHTML = '<p class="hint">No resource files yet.</p>';
-                    return;
+                // Render instructions
+                const instructionsList = document.getElementById('instructions-list');
+                if (data.instructions.length === 0) {
+                    instructionsList.innerHTML = '<p class="hint">No instruction files yet.</p>';
+                } else {
+                    instructionsList.innerHTML = data.instructions.map(f => `
+                        <div class="file-item">
+                            <span class="filename">${f}</span>
+                            <button onclick="deleteFile('instructions', '${f}')">Delete</button>
+                        </div>
+                    `).join('');
                 }
 
-                fileList.innerHTML = data.files.map(f => `
-                    <div class="file-item">
-                        <span class="filename">${f}</span>
-                        <button onclick="deleteFile('${f}')">Delete</button>
-                    </div>
-                `).join('');
+                // Render resources
+                const resourcesList = document.getElementById('resources-list');
+                if (data.resources.length === 0) {
+                    resourcesList.innerHTML = '<p class="hint">No resource files yet.</p>';
+                } else {
+                    resourcesList.innerHTML = data.resources.map(f => `
+                        <div class="file-item">
+                            <span class="filename">${f}</span>
+                            <button onclick="deleteFile('resources', '${f}')">Delete</button>
+                        </div>
+                    `).join('');
+                }
             } catch (err) {
                 console.error('Failed to load files:', err);
             }
         }
 
-        async function deleteFile(filename) {
+        async function deleteFile(folder, filename) {
             if (!confirm(`Delete ${filename}?`)) return;
 
             try {
-                const response = await fetch(`/delete/${filename}`, { method: 'DELETE' });
+                const response = await fetch(`/delete/${folder}/${filename}`, { method: 'DELETE' });
                 const data = await response.json();
 
                 if (data.error) {
