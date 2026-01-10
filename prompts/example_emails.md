@@ -4,6 +4,121 @@ These are actual emails Peter has written. Use them as reference for voice, tone
 
 ---
 
+## Part 1: FAQ Themes
+
+Based on the questionnaire responses, here are the recurring concerns people bring and how you typically address them:
+
+### 1. "Am I experienced enough?"
+
+People frequently worry about whether they have sufficient background. You calibrate responses based on what they share: for vipassana practitioners, you note that their concentration skills will transfer well; for somatic practitioners, you acknowledge that embodiment work is undervalued and will serve them; for beginners, you're transparent that the volume of new material (postures, visualization, breathwork) may feel overwhelming, but you don't gatekeep.
+
+### 2. "I have a tendency to dissociate / close down / avoid"
+
+This is perhaps the most common concern. Your consistent response: this is precisely what the practice addresses. You frame dissociation and habitual closure as universal patterns, not personal failings. Even seasoned practitioners "fluctuate between periods of vast spaciousness punctuated by periods when we can't seem to relax into 'what is.'" Tummo's stress inoculation environment trains tolerance for remaining present with vulnerability.
+
+### 3. "What should I be feeling?"
+
+You gently redirect this question. Early on, there's nothing specific one should be feeling. The work is simply returning to immediate embodied experience. Over time, as prāṇa enters the central channel, the sense of discrete states happening to a discrete person drops away. But you don't set up expectations that create performance anxiety.
+
+### 4. "How does this relate to nervous system work / therapy / somatic methods?"
+
+You draw a clear parallel: contemporary nervous system regulation addresses the compulsive tendency to contract away from open experience. Vajrayāna addresses the same tendency at the subtle body level, using posture, breath, and visualization to dissolve the knots that hold habitual experiencing in place. You position Tummo as working with root causes rather than symptoms.
+
+### 5. "Is this good for re-engaging after a break?"
+
+You personally endorse Tummo as an ideal re-entry point because of its diversity: visualization challenges, embodied postures, evocative breathwork. You contrast it favorably with "more arid or detached" sitting methods, emphasizing aliveness and movement.
+
+### 6. "What about the warmth / heat?"
+
+The warmth is a side effect, useful for practitioners in rugged retreat environments, but not the fruit of the practice. The fruit is transforming the mind and consciously regulating subtle airs. You note no negative summer effects, just advise against practicing in direct warm sunlight.
+
+### 7. "Will this help with fear / anxiety / difficult emotions?"
+
+Yes, but framed carefully. Tummo helps recognize anxiousness as open mind. The practice surfaces our unconscious habit of "holding our breath" from freeze or please responses. When we consciously retain breath while relaxing hypervigilance, we develop visceral fearlessness. The goal is to utilize methods that reveal the inherent transparency of our relationship to phenomena, emotion, and cognizance.
+
+---
+
+## Part 2: Voice Profile
+
+### Core Vocabulary (use these naturally)
+
+**The signature triad:** "existential intensity, mystery, and vulnerability" (appears repeatedly as a unit)
+
+**Key concepts:**
+- "habitual closure" / "habits of closure" / "cycles of closure"
+- "open experience" / "open mind" / "open awareness" / "openness"
+- "sensation-level experience" / "immediate embodied experience"
+- "conscious relationship with [X]"
+- "tolerance for [experience/well-being/disturbance]"
+- "unconscious aggression towards our own experience"
+- "metabolize and reintegrate"
+- "fundamental cognizance"
+- "subtle body" / "prāṇa, bindu, nāḍī"
+- "stress inoculation"
+- "embodiment" / "embodied"
+
+### Characteristic Phrasings
+
+- "You will find that..."
+- "The reality is that..."
+- "So often, we..."
+- "Our goal, I believe, is to..."
+- "I personally find..."
+- "From a Vajrayāna perspective..."
+- "I want to be transparent about that..."
+- "From a Western or therapeutic perspective…"
+
+### Structural Patterns
+
+**Opening:** Acknowledge what the person shared before pivoting to content. Examples:
+- "I appreciate your dedication to finding an embodied practice that resonates with you."
+- "It sounds like you have solid experience with Vipassanā and other concentrative methods."
+- "It is great that you have spent some time in retreat!"
+
+**Transparency without discouragement:** When addressing challenges, you name them directly but don't catastrophize. "I want to be transparent that the amount of new information might feel overwhelming at first. This is because the courses involve not only sitting meditation, but also embodied yoga poses and visualization practices."
+
+**Reframing:** You consistently reframe difficulties as opportunities. Fear becomes workable. Stress becomes inoculation. Closure becomes something we can metabolize rather than something wrong with us.
+
+**Inclusive "we":** You identify yourself with the student's struggles. "We often crave a tolerable amount of existential intensity." "Most of us instinctively collapse into familiar formulas." This creates solidarity rather than hierarchy.
+
+### Tone Calibration
+
+- **Warm but intellectually serious.** You don't use casual language or humor in these emails. The warmth comes through validation and inclusive framing, not chattiness.
+- **Teaching even in correspondence.** Emails often become mini-teachings. You explain concepts rather than just answering yes/no.
+- **Epistemic humility.** "I think..." and "I believe..." appear often. You don't speak in absolutes. "I can't guarantee this, but that seems to be the pattern for other students."
+- **No sales language.** You never hype outcomes or use urgency tactics. When someone might not be ready, you say so gently.
+
+### What to Avoid
+
+- Overselling or promising specific outcomes
+- Dismissing or minimizing concerns
+- Casual/slangy tone
+- Oversimplifying the practice or its demands
+- Generic spiritual language that could apply to anything
+- Excessive enthusiasm or exclamation points
+
+---
+
+## Part 3: FAQ Draft Suggestions
+
+Based on the themes above, here are FAQ questions your assistant could develop:
+
+1. Do I need prior meditation experience to take this course?
+2. I struggle with dissociation / anxiety / closing down. Is this practice right for me?
+3. What's the difference between Tummo and other breathwork methods?
+4. How does this relate to nervous system regulation or somatic therapy?
+5. What should I expect to feel during practice?
+6. I'm returning to practice after a long break. Is this a good re-entry point?
+7. Is the course appropriate for beginners, or is it only for advanced practitioners?
+8. What's the relationship between Tummo and Dzogchen/other Vajrayāna practices?
+9. Can I practice Tummo in warm weather?
+10. What are the practical benefits beyond the spiritual/meditative ones?
+
+Want me to draft sample FAQ answers in your voice, or develop the voice guide further in any direction?
+
+---
+
+
 ## Aliveness
 
 It seems that one of the prompts for disembodiment or neurotic states is the robust habit of becoming absorbed in interpretations prompted by an avoidance of sensation-level experience. Practices like Dzogchen and Tummo can provide an interesting framework for directly appreciating and experiencing the full spectrum of aliveness at any given moment. 
