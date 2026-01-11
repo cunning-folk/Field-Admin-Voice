@@ -3,8 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Field Assistant</title>
+    <title>Field Support</title>
     <style>
+        @font-face {
+            font-family: 'GT Alpina';
+            src: url('/static/fonts/GT-Alpina-Standard-Medium-Italic.otf') format('opentype');
+            font-weight: 500;
+            font-style: italic;
+        }
+
         * {
             box-sizing: border-box;
         }
@@ -30,8 +37,10 @@
         }
 
         .header h1 {
-            font-size: 1.25rem;
+            font-family: 'GT Alpina', Georgia, serif;
+            font-size: 1.4rem;
             font-weight: 500;
+            font-style: italic;
             margin: 0;
         }
 
@@ -81,7 +90,66 @@
             padding: 0.75rem 1rem;
             border-radius: 12px;
             line-height: 1.5;
-            white-space: pre-wrap;
+        }
+
+        .message-content p {
+            margin: 0 0 0.75rem 0;
+        }
+
+        .message-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        .message-content h1, .message-content h2, .message-content h3 {
+            margin: 0.75rem 0 0.5rem 0;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .message-content h1:first-child,
+        .message-content h2:first-child,
+        .message-content h3:first-child {
+            margin-top: 0;
+        }
+
+        .message-content ul, .message-content ol {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+
+        .message-content li {
+            margin-bottom: 0.25rem;
+        }
+
+        .message-content code {
+            background: #f0f0f0;
+            padding: 0.15rem 0.35rem;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+
+        .message-content pre {
+            background: #f5f5f5;
+            padding: 0.75rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+        }
+
+        .message-content pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .message-content blockquote {
+            border-left: 3px solid #ddd;
+            margin: 0.5rem 0;
+            padding-left: 0.75rem;
+            color: #666;
+        }
+
+        .message-content strong {
+            font-weight: 600;
         }
 
         .message.user .message-content {
@@ -313,11 +381,71 @@
             margin-bottom: 0.5rem;
             color: #555;
         }
+
+        /* Copy button styles */
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.25rem;
+            padding: 0 0.5rem;
+        }
+
+        .copy-btn {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .copy-btn:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .copy-btn.copied {
+            color: #080;
+        }
+
+        /* Keyboard hint styles */
+        .input-hint {
+            font-size: 0.75rem;
+            color: #999;
+            text-align: center;
+            margin-top: 0.5rem;
+        }
+
+        .input-hint kbd {
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 0.1rem 0.35rem;
+            font-family: inherit;
+            font-size: 0.7rem;
+        }
+
+        /* Streaming cursor */
+        .streaming-cursor {
+            display: inline-block;
+            animation: blink 1s step-end infinite;
+            color: #666;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div class="header">
-        <h1>Field Assistant</h1>
+        <h1>field support</h1>
         <div class="header-buttons">
             <button onclick="clearChat()">New Chat</button>
             <button onclick="openFilesModal()">Resources</button>
@@ -341,6 +469,9 @@
                 oninput="autoResize(this)"
             ></textarea>
             <button id="send-btn" onclick="sendMessage()">Send</button>
+        </div>
+        <div class="input-hint">
+            <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for new line
         </div>
     </div>
 
@@ -404,28 +535,101 @@
             isLoading = true;
             document.getElementById('send-btn').disabled = true;
 
-            // Show typing indicator
-            showTypingIndicator();
+            // Create assistant message container for streaming
+            const container = document.getElementById('chat-container');
+            const div = document.createElement('div');
+            div.className = 'message assistant';
+
+            const header = document.createElement('div');
+            header.className = 'message-header';
+
+            const label = document.createElement('div');
+            label.className = 'message-label';
+            label.textContent = 'Assistant';
+            header.appendChild(label);
+
+            // Placeholder for copy button (will be updated when done)
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-btn';
+            copyBtn.style.display = 'none';
+            copyBtn.innerHTML = '📋 Copy';
+            header.appendChild(copyBtn);
+
+            div.appendChild(header);
+
+            // Container for search badges
+            const badgesContainer = document.createElement('div');
+            div.appendChild(badgesContainer);
+
+            const bubble = document.createElement('div');
+            bubble.className = 'message-content';
+            bubble.innerHTML = '<span class="streaming-cursor">▊</span>';
+            div.appendChild(bubble);
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+
+            let fullContent = '';
+            let searches = [];
 
             try {
-                const response = await fetch('/chat', {
+                const response = await fetch('/chat/stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ messages })
                 });
 
-                const data = await response.json();
-                hideTypingIndicator();
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
 
-                if (data.error) {
-                    appendMessage('assistant', 'Error: ' + data.error);
-                } else {
-                    messages.push({ role: 'assistant', content: data.reply });
-                    appendMessage('assistant', data.reply, data.searches);
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+
+                                if (data.type === 'text') {
+                                    fullContent += data.content;
+                                    bubble.innerHTML = marked.parse(fullContent) + '<span class="streaming-cursor">▊</span>';
+                                    container.scrollTop = container.scrollHeight;
+                                } else if (data.type === 'search') {
+                                    searches.push(data.query);
+                                    const badge = document.createElement('div');
+                                    badge.className = 'search-badge';
+                                    badge.textContent = `Searching: ${data.query}`;
+                                    badgesContainer.appendChild(badge);
+                                } else if (data.type === 'done') {
+                                    // Remove cursor and finalize
+                                    bubble.innerHTML = marked.parse(fullContent);
+                                    // Update search badges text
+                                    badgesContainer.querySelectorAll('.search-badge').forEach((badge, i) => {
+                                        badge.textContent = `Searched: ${searches[i]}`;
+                                    });
+                                    // Show and wire up copy button
+                                    copyBtn.style.display = 'flex';
+                                    copyBtn.onclick = () => copyToClipboard(fullContent, copyBtn);
+                                } else if (data.type === 'error') {
+                                    bubble.innerHTML = '<span style="color: #c00;">Error: ' + data.message + '</span>';
+                                }
+                            } catch (e) {
+                                // Ignore parse errors for incomplete chunks
+                            }
+                        }
+                    }
                 }
+
+                // Add to message history
+                if (fullContent) {
+                    messages.push({ role: 'assistant', content: fullContent });
+                }
+
             } catch (err) {
-                hideTypingIndicator();
-                appendMessage('assistant', 'Error: Failed to connect');
+                bubble.innerHTML = '<span style="color: #c00;">Error: Failed to connect</span>';
             }
 
             isLoading = false;
@@ -438,11 +642,25 @@
             const div = document.createElement('div');
             div.className = `message ${role}`;
 
+            // Create header with label and copy button
+            const header = document.createElement('div');
+            header.className = 'message-header';
+
             const label = document.createElement('div');
             label.className = 'message-label';
             label.textContent = role === 'user' ? 'You' : 'Assistant';
+            header.appendChild(label);
 
-            div.appendChild(label);
+            // Add copy button for assistant messages
+            if (role === 'assistant') {
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.innerHTML = '📋 Copy';
+                copyBtn.onclick = () => copyToClipboard(content, copyBtn);
+                header.appendChild(copyBtn);
+            }
+
+            div.appendChild(header);
 
             // Show search badges if searches were performed
             if (searches && searches.length > 0) {
@@ -456,11 +674,34 @@
 
             const bubble = document.createElement('div');
             bubble.className = 'message-content';
-            bubble.textContent = content;
+
+            // Render markdown for assistant messages, plain text for user
+            if (role === 'assistant') {
+                bubble.innerHTML = marked.parse(content);
+            } else {
+                bubble.textContent = content;
+            }
 
             div.appendChild(bubble);
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
+
+            return { div, bubble }; // Return refs for streaming updates
+        }
+
+        async function copyToClipboard(text, button) {
+            try {
+                await navigator.clipboard.writeText(text);
+                const originalText = button.innerHTML;
+                button.innerHTML = '✓ Copied';
+                button.classList.add('copied');
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.classList.remove('copied');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy:', err);
+            }
         }
 
         function showTypingIndicator() {

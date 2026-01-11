@@ -3,11 +3,12 @@ Peter McEwen Field Assistant
 A chat interface with web search capabilities.
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
 from anthropic import Anthropic
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 import os
+import json
 import requests
 from pathlib import Path
 
@@ -262,6 +263,96 @@ def chat():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/chat/stream", methods=["POST"])
+def chat_stream():
+    """Streaming chat endpoint using Server-Sent Events."""
+    data = request.json
+    messages = data.get("messages", [])
+
+    if not messages:
+        return jsonify({"error": "No messages provided"}), 400
+
+    def generate():
+        try:
+            system_prompt = build_system_prompt()
+            tool_uses = []
+            current_messages = messages.copy()
+
+            # Handle potential tool use loop (non-streaming for tool calls)
+            while True:
+                # Check if we need to do tool use first (non-streaming)
+                initial_response = client.messages.create(
+                    model="claude-sonnet-4-20250514",
+                    max_tokens=2048,
+                    system=system_prompt,
+                    messages=current_messages,
+                    tools=[WEB_SEARCH_TOOL]
+                )
+
+                if initial_response.stop_reason != "tool_use":
+                    break
+
+                # Handle tool use
+                tool_use_block = None
+                for block in initial_response.content:
+                    if block.type == "tool_use":
+                        tool_use_block = block
+                        break
+
+                if not tool_use_block:
+                    break
+
+                search_query = tool_use_block.input.get("query", "")
+                tool_uses.append(search_query)
+
+                # Send search event to frontend
+                yield f"data: {json.dumps({'type': 'search', 'query': search_query})}\n\n"
+
+                search_results = perform_web_search(search_query)
+
+                current_messages = current_messages + [
+                    {"role": "assistant", "content": initial_response.content},
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": tool_use_block.id,
+                                "content": search_results
+                            }
+                        ]
+                    }
+                ]
+
+            # Now stream the final response
+            with client.messages.stream(
+                model="claude-sonnet-4-20250514",
+                max_tokens=2048,
+                system=system_prompt,
+                messages=current_messages,
+                tools=[WEB_SEARCH_TOOL]
+            ) as stream:
+                full_text = ""
+                for text in stream.text_stream:
+                    full_text += text
+                    yield f"data: {json.dumps({'type': 'text', 'content': text})}\n\n"
+
+            # Send completion event
+            yield f"data: {json.dumps({'type': 'done', 'searches': tool_uses})}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return Response(
+        generate(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'
+        }
+    )
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
