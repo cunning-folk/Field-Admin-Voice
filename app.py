@@ -20,6 +20,14 @@ app = Flask(__name__)
 # Load API key from environment
 client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
+# Available models
+MODELS = {
+    "sonnet": "claude-sonnet-4-20250514",
+    "opus": "claude-opus-4-20250514"
+}
+DEFAULT_MODEL = "sonnet"
+MAX_TOKENS = 4096
+
 # Web search tool definition
 WEB_SEARCH_TOOL = {
     "name": "web_search",
@@ -270,6 +278,8 @@ def chat_stream():
     """Streaming chat endpoint using Server-Sent Events."""
     data = request.json
     messages = data.get("messages", [])
+    model_key = data.get("model", DEFAULT_MODEL)
+    model = MODELS.get(model_key, MODELS[DEFAULT_MODEL])
 
     if not messages:
         return jsonify({"error": "No messages provided"}), 400
@@ -284,8 +294,8 @@ def chat_stream():
             while True:
                 # Check if we need to do tool use first (non-streaming)
                 initial_response = client.messages.create(
-                    model="claude-sonnet-4-20250514",
-                    max_tokens=2048,
+                    model=model,
+                    max_tokens=MAX_TOKENS,
                     system=system_prompt,
                     messages=current_messages,
                     tools=[WEB_SEARCH_TOOL]
@@ -328,8 +338,8 @@ def chat_stream():
 
             # Now stream the final response
             with client.messages.stream(
-                model="claude-sonnet-4-20250514",
-                max_tokens=2048,
+                model=model,
+                max_tokens=MAX_TOKENS,
                 system=system_prompt,
                 messages=current_messages,
                 tools=[WEB_SEARCH_TOOL]
