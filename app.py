@@ -44,6 +44,37 @@ WEB_SEARCH_TOOL = {
     }
 }
 
+# Resource file tool definition (for lazy-loading)
+READ_RESOURCE_TOOL = {
+    "name": "read_resource",
+    "description": "Read a resource file to get reference material like voice guides, example emails, brand values, course information, etc. Use this when you need specific context from The Field's documentation to answer accurately. Available resources will be listed in the system prompt.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "filename": {
+                "type": "string",
+                "description": "The filename of the resource to read (e.g., 'voice_guide.md')"
+            }
+        },
+        "required": ["filename"]
+    }
+}
+
+def read_resource_file(filename):
+    """Read a resource file from the prompts directory."""
+    try:
+        # Security: only allow reading from prompts directory
+        safe_filename = secure_filename(filename)
+        file_path = PROMPTS_DIR / safe_filename
+
+        if not file_path.exists():
+            return f"Resource file '{filename}' not found. Available files: {', '.join(f.name for f in get_resource_files())}"
+
+        content = file_path.read_text()
+        return content
+    except Exception as e:
+        return f"Error reading resource: {str(e)}"
+
 def perform_web_search(query):
     """Perform a web search using DuckDuckGo's instant answer API."""
     try:
@@ -104,7 +135,7 @@ def get_resource_files():
     return sorted([f for f in PROMPTS_DIR.glob("*.md") if f.is_file()])
 
 def build_system_prompt():
-    """Construct the full system prompt from instructions and resource files."""
+    """Construct the system prompt with instructions only. Resources are lazy-loaded via tool."""
     # Load instructions (behavior rules) first
     instructions = []
     for file_path in get_instructions():
@@ -113,14 +144,9 @@ def build_system_prompt():
 
     instructions_text = "\n\n".join(instructions) if instructions else ""
 
-    # Load resource files
-    resources = []
-    for file_path in get_resource_files():
-        name = file_path.stem.replace("_", " ").title()
-        content = file_path.read_text()
-        resources.append(f"## {name}\n\n{content}")
-
-    resources_text = "\n\n".join(resources) if resources else "(No resource files loaded)"
+    # List available resource files (but don't load content)
+    resource_files = get_resource_files()
+    resource_list = "\n".join([f"- {f.name}" for f in resource_files]) if resource_files else "(No resource files available)"
 
     # Build the system prompt with instructions at the top
     base_prompt = """You are an AI assistant for Peter McEwen, founder of The Field.
@@ -129,11 +155,11 @@ You help Peter with various tasks including drafting emails, answering questions
 
 When writing as Peter, make it sound like he wrote it quickly and naturally—not like an AI wrote it carefully.
 
-You have access to web search. Use it when:
-- Asked about current events, news, or recent information
-- Looking up facts about people, companies, or organizations
-- Researching topics you're unsure about
-- The user explicitly asks you to search or look something up"""
+You have access to two tools:
+
+1. **web_search**: Use when you need current information, facts about people/companies, or when the user asks you to look something up.
+
+2. **read_resource**: Use to load reference material when you need specific context about The Field's voice, brand, courses, or examples. Load resources BEFORE drafting content that needs to match Peter's style or contain accurate course/program details."""
 
     # Add instructions if they exist
     if instructions_text:
@@ -141,9 +167,9 @@ You have access to web search. Use it when:
 
     return f"""{base_prompt}
 
-# Resources
+# Available Resources (use read_resource tool to load)
 
-{resources_text}
+{resource_list}
 
 Match the appropriate length and depth to the type of request. Keep responses concise unless depth is needed.
 """
@@ -284,6 +310,9 @@ def chat_stream():
     if not messages:
         return jsonify({"error": "No messages provided"}), 400
 
+    # Both tools available
+    tools = [WEB_SEARCH_TOOL, READ_RESOURCE_TOOL]
+
     def generate():
         try:
             system_prompt = build_system_prompt()
@@ -298,7 +327,7 @@ def chat_stream():
                     max_tokens=MAX_TOKENS,
                     system=system_prompt,
                     messages=current_messages,
-                    tools=[WEB_SEARCH_TOOL]
+                    tools=tools
                 )
 
                 if initial_response.stop_reason != "tool_use":
@@ -314,13 +343,21 @@ def chat_stream():
                 if not tool_use_block:
                     break
 
-                search_query = tool_use_block.input.get("query", "")
-                tool_uses.append(search_query)
+                # Execute the appropriate tool
+                tool_name = tool_use_block.name
+                tool_result = ""
 
-                # Send search event to frontend
-                yield f"data: {json.dumps({'type': 'search', 'query': search_query})}\n\n"
+                if tool_name == "web_search":
+                    search_query = tool_use_block.input.get("query", "")
+                    tool_uses.append({"type": "search", "query": search_query})
+                    yield f"data: {json.dumps({'type': 'search', 'query': search_query})}\n\n"
+                    tool_result = perform_web_search(search_query)
 
-                search_results = perform_web_search(search_query)
+                elif tool_name == "read_resource":
+                    filename = tool_use_block.input.get("filename", "")
+                    tool_uses.append({"type": "resource", "filename": filename})
+                    yield f"data: {json.dumps({'type': 'resource', 'filename': filename})}\n\n"
+                    tool_result = read_resource_file(filename)
 
                 current_messages = current_messages + [
                     {"role": "assistant", "content": initial_response.content},
@@ -330,7 +367,7 @@ def chat_stream():
                             {
                                 "type": "tool_result",
                                 "tool_use_id": tool_use_block.id,
-                                "content": search_results
+                                "content": tool_result
                             }
                         ]
                     }
@@ -342,7 +379,7 @@ def chat_stream():
                 max_tokens=MAX_TOKENS,
                 system=system_prompt,
                 messages=current_messages,
-                tools=[WEB_SEARCH_TOOL]
+                tools=tools
             ) as stream:
                 full_text = ""
                 for text in stream.text_stream:
@@ -350,7 +387,7 @@ def chat_stream():
                     yield f"data: {json.dumps({'type': 'text', 'content': text})}\n\n"
 
             # Send completion event
-            yield f"data: {json.dumps({'type': 'done', 'searches': tool_uses})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'tool_uses': tool_uses})}\n\n"
 
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"

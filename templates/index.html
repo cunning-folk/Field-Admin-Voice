@@ -26,6 +26,13 @@
             font-style: normal;
         }
 
+        @font-face {
+            font-family: 'GT America Extended';
+            src: url('/static/fonts/GT-America-Extended-Medium.otf') format('opentype');
+            font-weight: 500;
+            font-style: normal;
+        }
+
         * {
             box-sizing: border-box;
         }
@@ -266,6 +273,12 @@
             padding: 0.25rem 0.5rem;
             border-radius: 4px;
             margin-bottom: 0.5rem;
+            margin-right: 0.25rem;
+        }
+
+        .resource-badge {
+            background: #f0e8ff;
+            color: #6600cc;
         }
 
         /* Modal styles */
@@ -390,41 +403,37 @@
         }
 
         .welcome h2 {
-            font-weight: 400;
+            font-family: 'GT America Extended', sans-serif;
+            font-weight: 500;
             font-size: 1.25rem;
             margin-bottom: 0.5rem;
             color: #555;
         }
 
         /* Copy button styles */
-        .message-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.25rem;
-            padding: 0 0.5rem;
-        }
-
         .copy-btn {
             background: none;
-            border: none;
+            border: 1px solid #ddd;
             color: #888;
             cursor: pointer;
             font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
+            padding: 0.35rem 0.6rem;
             border-radius: 4px;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 0.25rem;
+            margin-top: 0.5rem;
         }
 
         .copy-btn:hover {
             background: #f0f0f0;
             color: #333;
+            border-color: #ccc;
         }
 
         .copy-btn.copied {
             color: #080;
+            border-color: #080;
         }
 
         /* Keyboard hint styles */
@@ -635,22 +644,10 @@
             const div = document.createElement('div');
             div.className = 'message assistant';
 
-            const header = document.createElement('div');
-            header.className = 'message-header';
-
             const label = document.createElement('div');
             label.className = 'message-label';
             label.textContent = 'Assistant';
-            header.appendChild(label);
-
-            // Placeholder for copy button (will be updated when done)
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'copy-btn';
-            copyBtn.style.display = 'none';
-            copyBtn.innerHTML = '📋 Copy';
-            header.appendChild(copyBtn);
-
-            div.appendChild(header);
+            div.appendChild(label);
 
             // Container for search badges
             const badgesContainer = document.createElement('div');
@@ -660,6 +657,13 @@
             bubble.className = 'message-content';
             bubble.innerHTML = '<span class="streaming-cursor">▊</span>';
             div.appendChild(bubble);
+
+            // Copy button at bottom (hidden until done)
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-btn';
+            copyBtn.style.display = 'none';
+            copyBtn.innerHTML = '📋 Copy';
+            div.appendChild(copyBtn);
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
 
@@ -697,13 +701,26 @@
                                     const badge = document.createElement('div');
                                     badge.className = 'search-badge';
                                     badge.textContent = `Searching: ${data.query}`;
+                                    badge.dataset.type = 'search';
+                                    badge.dataset.value = data.query;
+                                    badgesContainer.appendChild(badge);
+                                } else if (data.type === 'resource') {
+                                    const badge = document.createElement('div');
+                                    badge.className = 'search-badge resource-badge';
+                                    badge.textContent = `Loading: ${data.filename}`;
+                                    badge.dataset.type = 'resource';
+                                    badge.dataset.value = data.filename;
                                     badgesContainer.appendChild(badge);
                                 } else if (data.type === 'done') {
                                     // Remove cursor and finalize
                                     bubble.innerHTML = marked.parse(fullContent);
-                                    // Update search badges text
-                                    badgesContainer.querySelectorAll('.search-badge').forEach((badge, i) => {
-                                        badge.textContent = `Searched: ${searches[i]}`;
+                                    // Update badges text to show completion
+                                    badgesContainer.querySelectorAll('.search-badge').forEach((badge) => {
+                                        if (badge.dataset.type === 'search') {
+                                            badge.textContent = `Searched: ${badge.dataset.value}`;
+                                        } else if (badge.dataset.type === 'resource') {
+                                            badge.textContent = `Loaded: ${badge.dataset.value}`;
+                                        }
                                     });
                                     // Show and wire up copy button
                                     copyBtn.style.display = 'flex';
@@ -737,25 +754,10 @@
             const div = document.createElement('div');
             div.className = `message ${role}`;
 
-            // Create header with label and copy button
-            const header = document.createElement('div');
-            header.className = 'message-header';
-
             const label = document.createElement('div');
             label.className = 'message-label';
             label.textContent = role === 'user' ? 'You' : 'Assistant';
-            header.appendChild(label);
-
-            // Add copy button for assistant messages
-            if (role === 'assistant') {
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'copy-btn';
-                copyBtn.innerHTML = '📋 Copy';
-                copyBtn.onclick = () => copyToClipboard(content, copyBtn);
-                header.appendChild(copyBtn);
-            }
-
-            div.appendChild(header);
+            div.appendChild(label);
 
             // Show search badges if searches were performed
             if (searches && searches.length > 0) {
@@ -778,6 +780,16 @@
             }
 
             div.appendChild(bubble);
+
+            // Add copy button at bottom for assistant messages
+            if (role === 'assistant') {
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.innerHTML = '📋 Copy';
+                copyBtn.onclick = () => copyToClipboard(content, copyBtn);
+                div.appendChild(copyBtn);
+            }
+
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
 

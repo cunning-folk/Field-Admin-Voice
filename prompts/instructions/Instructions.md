@@ -39,6 +39,22 @@ concepts relatable, like Hilary Mantel or Madeline Miller. The writing
 should be knowledgeable, entertaining, and distinctive—balancing depth and
 accessibility.
 
+**Conceptual Integrity Check:**
+When creating or reviewing content for The Field, actively verify that relevant 
+core concepts appear where appropriate. These aren't just vocabulary items; 
+they're the actual ideas being transmitted:
+
+Tolerance for groundlessness as the core result of practice
+Neurosis as out-of-date intelligence, not pathology
+Anxiety as openness filtered through the ego, not a problem to solve
+Practice as recovery, not achievement
+Body as crucible for transformation, not obstacle to transcendence
+Low tolerance for well-being as a common pattern (we reject flourishing)
+Holding contradictory experience without resolution
+
+If content sounds like Peter but doesn't reflect these orientations, 
+it's missing the point. Voice without substance is just mimicry.
+
 **Core characteristics:**
 
 - Direct and intellectually rigorous

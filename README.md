@@ -1,14 +1,16 @@
-# The Field Email Assistant
+# Field Support
 
-A simple web interface for drafting email responses in Peter's voice.
+A chat interface for Peter McEwen with web search capabilities and streaming responses.
 
-## What This Does
+## Features
 
-Paste an incoming email, click a button, get a draft response written in Peter's voice. The system uses Claude's API with a custom system prompt that includes:
-
-- Peter's voice guide (tone, vocabulary, patterns to avoid)
-- Example emails Peter has actually written
-- Instructions for handling different types of inquiries
+- **Chat Interface:** Conversational AI assistant with Peter's voice and style
+- **Streaming Responses:** Real-time text streaming via Server-Sent Events
+- **Web Search:** Automatic web search for current information when needed
+- **Model Selection:** Choose between Sonnet (fast) or Opus (smart)
+- **Export Chat:** Download conversations as markdown files
+- **Resource Management:** Upload and manage instruction files and reference materials
+- **Custom Fonts:** GT Alpina, GT America, and GT America Mono typography
 
 ## Setup (Local)
 
@@ -19,13 +21,13 @@ Paste an incoming email, click a button, get a draft response written in Peter's
 
 ### 2. Clone or download this folder
 
-Put the `email-assistant` folder wherever you keep projects.
+Put the project folder wherever you keep projects.
 
 ### 3. Create a virtual environment (recommended)
 
 ```bash
-cd email-assistant
-python -m venv venv
+cd Field-Admin-Voice
+python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
@@ -43,7 +45,7 @@ Copy the example environment file and add your key:
 cp .env.example .env
 ```
 
-Then edit `.env` and replace `sk-ant-xxxxxxxxxxxxx` with your actual API key.
+Then edit `.env` and replace the placeholder with your actual API key.
 
 Alternatively, export it directly:
 
@@ -54,63 +56,64 @@ export ANTHROPIC_API_KEY=sk-ant-your-actual-key
 ### 6. Run the app
 
 ```bash
-python app.py
+python3 app.py
 ```
 
-Open your browser to `http://localhost:5000`
+Open your browser to `http://localhost:5001`
 
 ## Usage
 
-1. **Context (optional):** Add any relevant context about the sender. E.g., "Returning student from Tummo I" or "First inquiry, found us via podcast."
-
-2. **Incoming Email:** Paste the email you're responding to.
-
-3. **Generate Draft:** Click the button. Wait a few seconds.
-
-4. **Review and Edit:** The draft appears in the output box. Copy it, tweak as needed, send.
+1. **Type a message** in the text area and press Enter to send
+2. **Select model** using the dropdown (Sonnet for speed, Opus for complex tasks)
+3. **Export** your conversation as a markdown file
+4. **Resources** button to manage instruction files and reference materials
 
 ## Customizing
 
-### Voice Guide
+### Instructions (Behavior Rules)
 
-Edit `prompts/voice_guide.md` to adjust the voice instructions. Changes take effect on next server restart.
+Add `.md` files to `prompts/instructions/` to define behavior rules. These are loaded first in the system prompt.
 
-### Example Emails
+### Resource Files
 
-Edit `prompts/example_emails.md` to add more examples or update existing ones. More examples = better pattern matching.
+Add `.md` files to `prompts/` (root level) to provide reference materials like voice guides, FAQs, or example content.
 
-### Model
-
-The app uses `claude-sonnet-4-20250514` by default. To change it, edit the `model` parameter in `app.py`.
+Changes take effect on the next message (no restart needed).
 
 ## File Structure
 
 ```
-email-assistant/
+Field-Admin-Voice/
 ├── app.py                 # Main Flask application
 ├── requirements.txt       # Python dependencies
 ├── .env.example          # Template for environment variables
 ├── .env                  # Your actual API key (don't commit this)
 ├── templates/
 │   └── index.html        # Web interface
+├── static/
+│   └── fonts/            # Custom font files (.otf)
 └── prompts/
-    ├── voice_guide.md    # Peter's voice instructions
-    └── example_emails.md # Reference emails
+    ├── instructions/     # Behavior rules (.md files)
+    └── *.md              # Resource files
 ```
 
-## Deploying for Remote Access
+## Deployment
 
-If your assistant needs to access this remotely, you'll need to deploy it somewhere. Options:
+### Replit
 
-- **Replit:** Import this folder, add your API key as a Secret, run.
-- **Railway/Render:** Connect to a Git repo, add environment variable, deploy.
-- **Heroku:** Similar process with their CLI.
+1. Import the GitHub repo
+2. Add `ANTHROPIC_API_KEY` in Secrets
+3. Run
 
-For any of these, make sure your API key is set as an environment variable, not committed to code.
+### Other Platforms (Railway, Render, etc.)
+
+1. Connect to Git repo
+2. Add `ANTHROPIC_API_KEY` environment variable
+3. Use `gunicorn app:app` as the start command
 
 ## Costs
 
-This uses the Claude API, which is pay-per-use. A typical email draft (including the system prompt) runs about 3,000-4,000 tokens input, 200-500 tokens output. At current Sonnet pricing, that's roughly $0.01-0.02 per draft.
+Uses the Claude API (pay-per-use). Sonnet is more cost-effective for most tasks; Opus is available for complex reasoning.
 
 ## Troubleshooting
 
@@ -120,5 +123,5 @@ Make sure you've set `ANTHROPIC_API_KEY` either in `.env` or as an environment v
 **"Error: rate_limit_error"**
 You've hit usage limits. Check your Anthropic dashboard.
 
-**Drafts sound too generic**
-The voice guide or examples might need updating. Review `prompts/` and add more examples of Peter's actual writing.
+**Port already in use**
+Kill the existing process: `lsof -ti:5001 | xargs kill -9`
