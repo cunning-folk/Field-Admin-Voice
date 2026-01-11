@@ -3,10 +3,11 @@ Peter McEwen Field Assistant
 A chat interface with web search capabilities.
 """
 
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for
 from anthropic import Anthropic
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
+from functools import wraps
 import os
 import json
 import requests
@@ -16,6 +17,7 @@ from pathlib import Path
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "dev-key-change-in-production")
 
 # Load API key from environment
 client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
@@ -122,6 +124,16 @@ def perform_web_search(query):
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 INSTRUCTIONS_DIR = PROMPTS_DIR / "instructions"
 
+
+def login_required(f):
+    """Decorator to require login for protected routes."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated_function
+
 def get_instructions():
     """Get all .md files from the instructions directory (behavior rules)."""
     if not INSTRUCTIONS_DIR.exists():
@@ -174,11 +186,32 @@ You have access to two tools:
 Match the appropriate length and depth to the type of request. Keep responses concise unless depth is needed.
 """
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """Login page and authentication."""
+    if request.method == "POST":
+        password = request.form.get("password")
+        if password == os.environ.get("APP_PASSWORD"):
+            session["logged_in"] = True
+            return redirect(url_for("home"))
+        return render_template("login.html", error="Incorrect password")
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    """Clear session and redirect to login."""
+    session.clear()
+    return redirect(url_for("login"))
+
+
 @app.route("/")
+@login_required
 def home():
     return render_template("index.html")
 
 @app.route("/files", methods=["GET"])
+@login_required
 def list_files():
     """List all .md files in prompts and instructions directories."""
     resources = [f.name for f in get_resource_files()]
@@ -186,6 +219,7 @@ def list_files():
     return jsonify({"resources": resources, "instructions": instructions})
 
 @app.route("/upload", methods=["POST"])
+@login_required
 def upload_file():
     """Upload a .md file to prompts or instructions directory."""
     if "file" not in request.files:
@@ -209,6 +243,7 @@ def upload_file():
     return jsonify({"success": True, "filename": filename, "folder": folder})
 
 @app.route("/delete/<folder>/<filename>", methods=["DELETE"])
+@login_required
 def delete_file(folder, filename):
     """Delete a .md file from prompts or instructions directory."""
     filename = secure_filename(filename)
@@ -222,6 +257,7 @@ def delete_file(folder, filename):
     return jsonify({"success": True})
 
 @app.route("/chat", methods=["POST"])
+@login_required
 def chat():
     data = request.json
     messages = data.get("messages", [])
@@ -300,6 +336,7 @@ def chat():
 
 
 @app.route("/chat/stream", methods=["POST"])
+@login_required
 def chat_stream():
     """Streaming chat endpoint using Server-Sent Events."""
     data = request.json
