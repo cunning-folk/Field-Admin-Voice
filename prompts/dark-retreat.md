@@ -26,6 +26,10 @@ Teaches Mahamudra and Dzogchen meditation, making esoteric practices accessible 
 ### Andrew Holecek - Guest Instructor
 Andrew Holecek is an interdisciplinary scholar-practitioner in Tibetan Buddhism and other nondual wisdom traditions. His work involves studies on dream yoga and the practice of dark retreat. He has completed the Tibetan Buddhist three-year retreat and is a frequent subject in scientific studies on meditation and lucid dreaming. He is currently writing two books on dark retreat.
 
+### David Germano - Guest Instructor 
+
+David Germano is Professor of Tibetan Buddhist Studies at the University of Virginia, where he has led many centers and projects over the years in cultural documentation, media production, software development, entrepreneurship, student flourishing, educational reform, and contemplative sciences. He has a deep expertise in Tibetan Buddhist philosophy and meditation and in the tantric and Great Perfection (dzokchen) traditions in particular. Since 2011, he has drawn upon that expertise to extensively support the creation and application of new forms of contemplative practice, environments, and applications in education, architecture, entrepreneurship, engineering, and many other contexts.
+
 ---
 
 ## Course Details
