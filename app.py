@@ -8,8 +8,11 @@ from anthropic import Anthropic
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from functools import wraps
+from collections import defaultdict
 import os
 import json
+import re
+import time
 import requests
 from pathlib import Path
 
@@ -18,6 +21,27 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-key-change-in-production")
+app.config.update(
+    SESSION_COOKIE_SECURE=os.environ.get("FLASK_DEBUG", "false").lower() != "true",
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+)
+
+# Rate limiting: max requests per session per minute
+RATE_LIMIT = int(os.environ.get("RATE_LIMIT", "10"))
+RATE_WINDOW = 60  # seconds
+_rate_store = defaultdict(list)
+
+def check_rate_limit():
+    """Check if the current session has exceeded the rate limit."""
+    session_id = session.get("_id", request.remote_addr)
+    now = time.time()
+    # Clean old entries
+    _rate_store[session_id] = [t for t in _rate_store[session_id] if now - t < RATE_WINDOW]
+    if len(_rate_store[session_id]) >= RATE_LIMIT:
+        return False
+    _rate_store[session_id].append(now)
+    return True
 
 # Load API key from environment
 client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
@@ -78,44 +102,54 @@ def read_resource_file(filename):
         return f"Error reading resource: {str(e)}"
 
 def perform_web_search(query):
-    """Perform a web search using DuckDuckGo's instant answer API."""
+    """Perform a web search using DuckDuckGo HTML search for real results."""
     try:
-        # Use DuckDuckGo instant answer API (free, no key needed)
+        # Use DuckDuckGo HTML endpoint for actual search results
         response = requests.get(
-            "https://api.duckduckgo.com/",
-            params={
-                "q": query,
-                "format": "json",
-                "no_html": 1,
-                "skip_disambig": 1
-            },
+            "https://html.duckduckgo.com/html/",
+            params={"q": query},
+            headers={"User-Agent": "Mozilla/5.0 (compatible; FieldAssistant/1.0)"},
             timeout=10
         )
-        data = response.json()
+        response.raise_for_status()
 
+        # Parse results from HTML (simple extraction without extra deps)
+        html = response.text
         results = []
+        # Each result has a title in <a class="result__a"> and snippet in <a class="result__snippet">
+        titles = re.findall(r'<a[^>]*class="result__a"[^>]*>(.*?)</a>', html)
+        snippets = re.findall(r'<a[^>]*class="result__snippet"[^>]*>(.*?)</a>', html, re.DOTALL)
+        urls = re.findall(r'<a[^>]*class="result__url"[^>]*href="([^"]*)"', html)
 
-        # Get abstract/summary if available
-        if data.get("Abstract"):
-            results.append(f"Summary: {data['Abstract']}")
-            if data.get("AbstractSource"):
-                results.append(f"Source: {data['AbstractSource']}")
+        # Clean HTML tags from extracted text
+        def clean_html(text):
+            return re.sub(r'<[^>]+>', '', text).strip()
 
-        # Get related topics
-        if data.get("RelatedTopics"):
-            results.append("\nRelated information:")
-            for topic in data["RelatedTopics"][:5]:
-                if isinstance(topic, dict) and topic.get("Text"):
-                    results.append(f"- {topic['Text']}")
-
-        # Get instant answer if available
-        if data.get("Answer"):
-            results.insert(0, f"Answer: {data['Answer']}")
+        for i in range(min(5, len(titles))):
+            title = clean_html(titles[i])
+            snippet = clean_html(snippets[i]) if i < len(snippets) else ""
+            url = urls[i] if i < len(urls) else ""
+            result = f"**{title}**"
+            if url:
+                result += f"\n  URL: {url}"
+            if snippet:
+                result += f"\n  {snippet}"
+            results.append(result)
 
         if results:
-            return "\n".join(results)
-        else:
-            return f"No detailed results found for '{query}'. Try rephrasing the search or ask me to search for something more specific."
+            return f"Search results for '{query}':\n\n" + "\n\n".join(results)
+
+        # Fallback to instant answer API if HTML parsing fails
+        fallback = requests.get(
+            "https://api.duckduckgo.com/",
+            params={"q": query, "format": "json", "no_html": 1, "skip_disambig": 1},
+            timeout=10
+        )
+        data = fallback.json()
+        if data.get("Abstract"):
+            return f"Summary: {data['Abstract']}\nSource: {data.get('AbstractSource', 'N/A')}"
+
+        return f"No results found for '{query}'. Try rephrasing the search."
 
     except Exception as e:
         return f"Search error: {str(e)}"
@@ -256,89 +290,13 @@ def delete_file(folder, filename):
     file_path.unlink()
     return jsonify({"success": True})
 
-@app.route("/chat", methods=["POST"])
-@login_required
-def chat():
-    data = request.json
-    messages = data.get("messages", [])
-
-    if not messages:
-        return jsonify({"error": "No messages provided"}), 400
-
-    try:
-        # Rebuild system prompt each time to pick up new files
-        system_prompt = build_system_prompt()
-
-        # Initial API call with tools
-        response = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=2048,
-            system=system_prompt,
-            messages=messages,
-            tools=[WEB_SEARCH_TOOL]
-        )
-
-        # Handle tool use loop
-        tool_uses = []
-        while response.stop_reason == "tool_use":
-            # Find tool use blocks
-            tool_use_block = None
-            for block in response.content:
-                if block.type == "tool_use":
-                    tool_use_block = block
-                    break
-
-            if not tool_use_block:
-                break
-
-            # Execute the search
-            search_query = tool_use_block.input.get("query", "")
-            tool_uses.append(search_query)
-            search_results = perform_web_search(search_query)
-
-            # Add assistant's response and tool result to messages
-            messages = messages + [
-                {"role": "assistant", "content": response.content},
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": tool_use_block.id,
-                            "content": search_results
-                        }
-                    ]
-                }
-            ]
-
-            # Get next response
-            response = client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=2048,
-                system=system_prompt,
-                messages=messages,
-                tools=[WEB_SEARCH_TOOL]
-            )
-
-        # Extract final text response
-        reply = ""
-        for block in response.content:
-            if hasattr(block, "text"):
-                reply += block.text
-
-        return jsonify({
-            "reply": reply,
-            "searches": tool_uses  # Let frontend know what was searched
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
 @app.route("/chat/stream", methods=["POST"])
 @login_required
 def chat_stream():
     """Streaming chat endpoint using Server-Sent Events."""
+    if not check_rate_limit():
+        return jsonify({"error": "Rate limit exceeded. Please wait a moment."}), 429
+
     data = request.json
     messages = data.get("messages", [])
     model_key = data.get("model", DEFAULT_MODEL)
@@ -370,44 +328,39 @@ def chat_stream():
                 if initial_response.stop_reason != "tool_use":
                     break
 
-                # Handle tool use
-                tool_use_block = None
+                # Handle ALL tool use blocks in this turn
+                tool_results = []
                 for block in initial_response.content:
-                    if block.type == "tool_use":
-                        tool_use_block = block
-                        break
+                    if block.type != "tool_use":
+                        continue
 
-                if not tool_use_block:
+                    tool_name = block.name
+                    tool_result = ""
+
+                    if tool_name == "web_search":
+                        search_query = block.input.get("query", "")
+                        tool_uses.append({"type": "search", "query": search_query})
+                        yield f"data: {json.dumps({'type': 'search', 'query': search_query})}\n\n"
+                        tool_result = perform_web_search(search_query)
+
+                    elif tool_name == "read_resource":
+                        filename = block.input.get("filename", "")
+                        tool_uses.append({"type": "resource", "filename": filename})
+                        yield f"data: {json.dumps({'type': 'resource', 'filename': filename})}\n\n"
+                        tool_result = read_resource_file(filename)
+
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": tool_result
+                    })
+
+                if not tool_results:
                     break
-
-                # Execute the appropriate tool
-                tool_name = tool_use_block.name
-                tool_result = ""
-
-                if tool_name == "web_search":
-                    search_query = tool_use_block.input.get("query", "")
-                    tool_uses.append({"type": "search", "query": search_query})
-                    yield f"data: {json.dumps({'type': 'search', 'query': search_query})}\n\n"
-                    tool_result = perform_web_search(search_query)
-
-                elif tool_name == "read_resource":
-                    filename = tool_use_block.input.get("filename", "")
-                    tool_uses.append({"type": "resource", "filename": filename})
-                    yield f"data: {json.dumps({'type': 'resource', 'filename': filename})}\n\n"
-                    tool_result = read_resource_file(filename)
 
                 current_messages = current_messages + [
                     {"role": "assistant", "content": initial_response.content},
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "tool_result",
-                                "tool_use_id": tool_use_block.id,
-                                "content": tool_result
-                            }
-                        ]
-                    }
+                    {"role": "user", "content": tool_results}
                 ]
 
             # Now stream the final response
